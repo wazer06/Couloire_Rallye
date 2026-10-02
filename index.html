@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<title>Couloir GPX Rallye</title>
+<style>
+:root{--ok:#16a34a;--warn:#f59e0b;--out:#dc2626;--idle:#334155}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#111;font-family:system-ui,-apple-system,Roboto,"Segoe UI",sans-serif;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+#map{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#hud{position:fixed;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;gap:12px;padding:8px 14px;padding-top:max(8px,env(safe-area-inset-top));background:var(--idle);box-shadow:0 2px 8px rgba(0,0,0,.45)}
+#hud.st-ok{background:var(--ok)}
+#hud.st-warn{background:var(--warn);color:#111}
+#hud.st-out{background:var(--out);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{background:#7f1d1d}}
+#bigWrap{min-width:3.3em}
+#big{font-size:54px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+#big small{font-size:22px;font-weight:700}
+#lbl{font-size:19px;font-weight:800;letter-spacing:.5px}
+#sub{font-size:14px;margin-top:3px;line-height:1.25}
+#arrow{font-size:56px;font-weight:900;margin-left:auto;line-height:1}
+#stats{position:fixed;left:0;right:0;z-index:3;display:grid;grid-template-columns:repeat(4,1fr);background:rgba(15,23,42,.9);font-size:11px;text-align:center;color:#cbd5e1}
+#stats div{padding:4px 2px}
+#stats b{display:block;font-size:20px;color:#fff;font-variant-numeric:tabular-nums}
+#rb{position:fixed;right:10px;z-index:3;display:flex;flex-direction:column;gap:10px;transform:translateY(-50%)}
+.btn{width:60px;height:60px;border-radius:14px;border:none;background:rgba(15,23,42,.9);color:#fff;font-size:26px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:0}
+.btn.on{background:#2563eb}
+.btn.hl{background:#f59e0b;color:#111}
+#nArrow{display:inline-block;font-size:15px;line-height:1;text-align:center}
+#nArrow i{display:block;font-style:normal;font-size:24px;color:#f87171}
+#bar{position:fixed;left:0;right:0;bottom:0;z-index:3;display:flex;gap:8px;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));background:rgba(15,23,42,.94)}
+#bar button{flex:1;height:60px;border:none;border-radius:12px;font-size:19px;font-weight:700;background:#1e293b;color:#fff}
+#bar #bGps{background:#16a34a;flex:1.4}
+#bar #bGps.on{background:#b91c1c}
+#empty{position:fixed;left:16px;right:16px;top:42%;transform:translateY(-50%);z-index:2;background:rgba(15,23,42,.95);border-radius:16px;padding:20px;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+#empty p{margin:0 0 14px;font-size:17px;line-height:1.4}
+#toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:20;background:#111827;color:#fff;padding:12px 18px;border-radius:12px;font-size:16px;max-width:90%;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.5);opacity:0;transition:opacity .25s;pointer-events:none}
+#toast.show{opacity:1}
+#panel{position:fixed;inset:0;z-index:10;background:#0b1220;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 60px;padding-top:max(12px,env(safe-area-inset-top));display:none;touch-action:pan-y;user-select:text;-webkit-user-select:text}
+#panel.open{display:block}
+.ph{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#0b1220;padding:4px 0 8px;z-index:1}
+.ph h2{margin:0;font-size:22px}
+.x{width:52px;height:52px;border:none;border-radius:12px;background:#1e293b;color:#fff;font-size:24px}
+section{background:#111a2e;border-radius:14px;padding:12px 14px;margin:10px 0}
+h3{margin:0 0 10px;font-size:17px;color:#93c5fd}
+.big,.mid,.small,.grid2 button{border:none;border-radius:12px;background:#2563eb;color:#fff;font-weight:700}
+.big{width:100%;height:58px;font-size:19px}
+.mid{height:52px;padding:0 18px;font-size:17px}
+.small{height:42px;padding:0 14px;font-size:15px;background:#334155;margin-top:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2 button{height:56px;font-size:17px}
+.grid2 button:last-child{grid-column:1/3;background:#7c3aed}
+.muted{color:#94a3b8;font-size:14px;line-height:1.4;margin:8px 0 0}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:16px}
+.sel{width:100%;height:50px;border-radius:12px;background:#1e293b;color:#fff;border:1px solid #334155;font-size:17px;padding:0 10px;margin-top:8px}
+.sel.sm{width:auto;margin:0}
+input[type=number]{height:52px;width:140px;border-radius:12px;background:#1e293b;color:#fff;border:1px solid #334155;font-size:19px;padding:0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-width:72px;height:52px;border-radius:12px;border:2px solid #334155;background:#1e293b;color:#fff;font-size:18px;font-weight:700}
+.chip.on{background:#16a34a;border-color:#4ade80}
+.chk{display:flex;align-items:center;gap:12px;font-size:17px;margin-top:10px}
+.chk input{width:26px;height:26px}
+ul.muted{padding-left:18px}
+ul.muted li{margin-bottom:6px}
+.legend span{display:inline-block;width:22px;height:5px;border-radius:3px;vertical-align:middle;margin-right:6px}
+</style>
+</head>
+<body>
+<canvas id="map"></canvas>
+
+<div id="hud" class="st-idle">
+  <div id="bigWrap"><div id="big">—</div></div>
+  <div><div id="lbl">GPS ARRÊTÉ</div><div id="sub">Charge une trace GPX</div></div>
+  <div id="arrow"></div>
+</div>
+<div id="stats">
+  <div><b id="sSpd">—</b>km/h</div>
+  <div><b id="sDone">—</b>km faits</div>
+  <div><b id="sLeft">—</b>km restants</div>
+  <div><b id="sAcc">—</b>précision m</div>
+</div>
+
+<div id="rb">
+  <button class="btn" id="bZin" aria-label="Zoom avant">+</button>
+  <button class="btn" id="bZout" aria-label="Zoom arrière">−</button>
+  <button class="btn" id="bOri" aria-label="Orientation"><span id="nArrow"><i>▲</i>N</span></button>
+  <button class="btn" id="bCtr" aria-label="Recentrer">◎</button>
+</div>
+
+<div id="bar">
+  <button id="bGps">▶ GPS</button>
+  <button id="bMenu">☰ Réglages</button>
+  <button id="bSnd">🔊</button>
+</div>
+
+<div id="empty">
+  <p><b>Aucune trace chargée</b><br>Charge le GPX de l'étape pour afficher le couloir.</p>
+  <button class="big" id="eLoad">📂 Charger un GPX</button>
+</div>
+
+<div id="toast"></div>
+
+<div id="panel">
+  <div class="ph"><h2>Réglages</h2><button class="x" id="pClose">✕</button></div>
+
+  <section>
+    <h3>1. Trace GPX de l'étape</h3>
+    <button class="big" id="pLoad">📂 Charger un fichier GPX</button>
+    <input type="file" id="file" hidden>
+    <div id="trInfo" class="muted">Aucune trace chargée</div>
+    <select id="trSel" class="sel" hidden></select>
+  </section>
+
+  <section>
+    <h3>2. Largeur autorisée (de chaque côté de la trace)</h3>
+    <div class="chips" id="chips"></div>
+    <div class="row"><input id="dCustom" type="number" inputmode="numeric" min="5" max="5000" placeholder="autre (m)"><button class="mid" id="dOk">OK</button></div>
+    <p class="muted legend"><span style="background:#2563eb"></span>trace (axe) &nbsp; <span style="background:#ef4444"></span>limites gauche / droite &nbsp; <span style="background:rgba(34,197,94,.6)"></span>couloir</p>
+  </section>
+
+  <section>
+    <h3>3. Alertes</h3>
+    <div class="row">Alerte orange à <select id="warnSel" class="sel sm"><option value="60">60 %</option><option value="70">70 %</option><option value="80">80 %</option><option value="90">90 %</option></select> de la limite</div>
+    <label class="chk"><input type="checkbox" id="cSound"> Bip sonore</label>
+    <label class="chk"><input type="checkbox" id="cVib"> Vibration</label>
+    <p class="muted">Vert : dans le couloir · Orange : proche de la limite · Rouge clignotant + bips répétés : hors couloir.</p>
+  </section>
+
+  <section>
+    <h3>4. Fond de carte</h3>
+    <select id="bmSel" class="sel">
+      <option value="sat">Satellite (Esri)</option>
+      <option value="osm">Plan (OpenStreetMap)</option>
+      <option value="none">Aucun (trace seule, 100 % hors-ligne)</option>
+    </select>
+    <p class="muted">Sans réseau, la trace et le couloir s'affichent toujours. Pour avoir aussi la carte, précharge-la le matin avec le wifi (zone autour de la trace uniquement).</p>
+    <div class="row">Zoom max <select id="mzSel" class="sel sm"><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option></select><button class="mid" id="pfBtn">⬇ Précharger</button></div>
+    <div id="pfStatus" class="muted"></div>
+    <button class="small" id="pfClear">Vider le cache cartes</button>
+  </section>
+
+  <section>
+    <h3>5. Exporter le couloir (2Nav, OsmAnd…)</h3>
+    <div class="grid2">
+      <button id="exL">⬇ Gauche</button>
+      <button id="exA">⬇ Axe</button>
+      <button id="exR">⬇ Droite</button>
+      <button id="ex3">⬇ Les 3 dans un seul fichier</button>
+    </div>
+    <p class="muted">Fichiers GPX (traces) enregistrés dans Téléchargements, avec la largeur dans le nom. Il suffit ensuite de les importer dans l'appli de navigation.</p>
+  </section>
+
+  <section>
+    <h3>6. Test à la maison</h3>
+    <button class="mid" id="simBtn">▶ Simuler un parcours</button>
+    <p class="muted">Fait rouler une voiture virtuelle le long de la trace en zigzaguant, pour vérifier les alertes, le son et l'affichage sans bouger.</p>
+  </section>
+
+  <section>
+    <h3>Aide</h3>
+    <ul class="muted">
+      <li>Ouvre ce fichier avec <b>Chrome</b>. Si l'ouverture depuis le gestionnaire de fichiers pose problème, tape dans la barre d'adresse : <b>file:///sdcard/Download/couloir-rallye.html</b></li>
+      <li>Autorise la <b>localisation</b> (position exacte) quand Chrome la demande.</li>
+      <li>L'écran reste allumé tant que le GPS est actif et que la page est au premier plan. Garde le téléphone branché.</li>
+      <li>La dernière trace et tes réglages sont mémorisés : pas besoin de recharger le GPX si la page se ferme.</li>
+      <li>Gauche / droite sont donnés par rapport au <b>sens de la trace</b>. La flèche en haut indique de quel côté braquer pour revenir.</li>
+      <li>Toucher la carte la déplace librement ; ◎ recentre sur ta position.</li>
+    </ul>
+    <div id="diag" class="muted"></div>
+  </section>
+</div>
+
+<script>
+'use strict';
+/*GEO-START*/
+const DEG = Math.PI / 180, K = 111194.93; // mètres par degré de latitude
+
+function distM(p, q) {
+  const c = Math.cos((p[0] + q[0]) / 2 * DEG);
+  const dx = (q[1] - p[1]) * K * c, dy = (q[0] - p[0]) * K;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+function dedupe(pts) {
+  const o = [];
+  for (const p of pts) { const l = o[o.length - 1]; if (!l || l[0] !== p[0] || l[1] !== p[1]) o.push(p); }
+  return o;
+}
+
+// Index spatial (grille) d'une polyligne pour trouver rapidement le point le plus proche
+class TrackIndex {
+  constructor(pts, cell) {
+    this.pts = pts; const n = pts.length; this.cell = cell || 150;
+    let la = 0; for (const p of pts) la += p[0]; la /= Math.max(n, 1);
+    this.kx = K * Math.cos(la * DEG);
+    this.len = new Float64Array(Math.max(n - 1, 0)); this.cum = new Float64Array(n);
+    for (let i = 0; i < n - 1; i++) { this.len[i] = distM(pts[i], pts[i + 1]); this.cum[i + 1] = this.cum[i] + this.len[i]; }
+    this.total = n ? this.cum[n - 1] : 0;
+    this.grid = new Map(); const C = this.cell;
+    for (let i = 0; i < n - 1; i++) {
+      const x1 = pts[i][1] * this.kx, y1 = pts[i][0] * K, x2 = pts[i + 1][1] * this.kx, y2 = pts[i + 1][0] * K;
+      const gx1 = Math.floor(Math.min(x1, x2) / C), gx2 = Math.floor(Math.max(x1, x2) / C);
+      const gy1 = Math.floor(Math.min(y1, y2) / C), gy2 = Math.floor(Math.max(y1, y2) / C);
+      for (let gx = gx1; gx <= gx2; gx++) for (let gy = gy1; gy <= gy2; gy++) {
+        const k = this.key(gx, gy); let a = this.grid.get(k); if (!a) { a = []; this.grid.set(k, a); } a.push(i);
+      }
+    }
+    this.stamp = new Int32Array(Math.max(n - 1, 1)); this.q = 0;
+  }
+  key(gx, gy) { return (gx + 1048576) * 2097152 + (gy + 1048576); }
+  segDist(s, lat, lon, c) {
+    const a = this.pts[s], b = this.pts[s + 1];
+    const ax = (a[1] - lon) * K * c, ay = (a[0] - lat) * K, bx = (b[1] - lon) * K * c, by = (b[0] - lat) * K;
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    let t = L2 > 0 ? -(ax * dx + ay * dy) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const px = ax + t * dx, py = ay + t * dy;
+    const cr = dx * (-ay) - dy * (-ax); // >0 : point à gauche du segment (sens de la trace)
+    return { d: Math.sqrt(px * px + py * py), seg: s, t, side: cr > 0 ? 1 : (cr < 0 ? -1 : 0), along: this.cum[s] + t * this.len[s] };
+  }
+  nearest(lat, lon, maxR, prefer) {
+    const n = this.pts.length; if (n < 2) return null;
+    if (maxR == null) maxR = Infinity;
+    const C = this.cell, qx = lon * this.kx, qy = lat * K, c = Math.cos(lat * DEG);
+    const gx = Math.floor(qx / C), gy = Math.floor(qy / C);
+    let r = C, best = null, cands = [];
+    for (;;) {
+      if (r > 30000) { // très loin : balayage complet
+        best = null; cands = [];
+        for (let s = 0; s < n - 1; s++) { const res = this.segDist(s, lat, lon, c); cands.push(res); if (!best || res.d < best.d) best = res; }
+        break;
+      }
+      const q = ++this.q; best = null; cands = [];
+      const k = Math.ceil(r * 1.2 / C);
+      for (let ix = gx - k; ix <= gx + k; ix++) for (let iy = gy - k; iy <= gy + k; iy++) {
+        const arr = this.grid.get(this.key(ix, iy)); if (!arr) continue;
+        for (let j = 0; j < arr.length; j++) {
+          const s = arr[j]; if (this.stamp[s] === q) continue; this.stamp[s] = q;
+          const res = this.segDist(s, lat, lon, c); cands.push(res); if (!best || res.d < best.d) best = res;
+        }
+      }
+      if (best && best.d <= r) break;
+      if (r >= maxR) break;
+      r = Math.min(r * 2, maxR);
+    }
+    if (!best) return null;
+    if (prefer != null) { // continuité : sur une trace qui repasse au même endroit, rester sur la bonne portion
+      const lim = best.d + Math.max(10, best.d * 0.2); let pick = best, pd = Math.abs(best.along - prefer);
+      for (const x of cands) if (x.d <= lim) { const dd = Math.abs(x.along - prefer); if (dd < pd) { pd = dd; pick = x; } }
+      if (pick !== best) return { d: best.d, side: pick.side, seg: pick.seg, t: pick.t, along: pick.along };
+    }
+    return best;
+  }
+}
+
+// Supprime le bruit GPS (points trop serrés) avant le calcul du décalage
+function spacingFilter(pts, minD) {
+  if (pts.length < 2) return pts.slice();
+  const o = [pts[0]];
+  for (let i = 1; i < pts.length; i++) if (distM(o[o.length - 1], pts[i]) >= minD) o.push(pts[i]);
+  const last = pts[pts.length - 1];
+  if (o[o.length - 1] !== last) { if (o.length > 1 && distM(o[o.length - 1], last) < minD / 2) o[o.length - 1] = last; else o.push(last); }
+  return o;
+}
+
+// Ligne décalée de D mètres (s = +1 gauche, -1 droite), avec virages arrondis côté extérieur
+// et suppression des parties qui tombent à l'intérieur du couloir (côté intérieur des virages serrés)
+function offsetLine(sm, ix, D, s) {
+  const n = sm.length; if (n < 2) return [];
+  const dirs = [];
+  for (let i = 0; i < n - 1; i++) {
+    const a = sm[i], b = sm[i + 1], c = Math.cos((a[0] + b[0]) / 2 * DEG);
+    const dx = (b[1] - a[1]) * K * c, dy = (b[0] - a[0]) * K, L = Math.hypot(dx, dy);
+    dirs.push(L > 0 ? [dx / L, dy / L] : (dirs.length ? dirs[dirs.length - 1] : [1, 0]));
+  }
+  const raw = [];
+  const add = (p, ox, oy) => { const c = Math.cos(p[0] * DEG); raw.push([p[0] + oy / K, p[1] + ox / (K * c)]); };
+  const nl = d => [-d[1] * s, d[0] * s];
+  let n0 = nl(dirs[0]); add(sm[0], n0[0] * D, n0[1] * D);
+  for (let i = 1; i < n - 1; i++) {
+    const d1 = dirs[i - 1], d2 = dirs[i], n1 = nl(d1), n2 = nl(d2);
+    const cross = d1[0] * d2[1] - d1[1] * d2[0], dot = d1[0] * d2[0] + d1[1] * d2[1];
+    if (s * cross > 1e-9 || (Math.abs(cross) <= 1e-9 && dot > 0)) { // intérieur du virage ou tout droit
+      let bx = n1[0] + n2[0], by = n1[1] + n2[1]; const bl = Math.hypot(bx, by) || 1; bx /= bl; by /= bl;
+      const ch = bx * n1[0] + by * n1[1], m = D / Math.max(ch, 0.5);
+      add(sm[i], bx * m, by * m);
+    } else { // extérieur du virage : arc de cercle
+      const a1 = Math.atan2(n1[1], n1[0]), a2 = Math.atan2(n2[1], n2[0]);
+      let da = a2 - a1; while (da > Math.PI) da -= 2 * Math.PI; while (da <= -Math.PI) da += 2 * Math.PI;
+      if (Math.abs(cross) <= 1e-9) da = -s * Math.PI; // demi-tour
+      const st = Math.max(1, Math.ceil(Math.abs(da) / (15 * DEG)));
+      for (let k = 0; k <= st; k++) { const a = a1 + da * k / st; add(sm[i], Math.cos(a) * D, Math.sin(a) * D); }
+    }
+  }
+  const nE = nl(dirs[n - 2]); add(sm[n - 1], nE[0] * D, nE[1] * D);
+
+  const tol = D * 0.98, out = []; let seg = [], removed = false, lastKept = null;
+  for (let p of raw) {
+    const r = ix.nearest(p[0], p[1], D * 3);
+    if (r && r.d < tol) { removed = true; continue; }
+    if (r && r.d > D * 1.02) { // trop loin (sommet intérieur sur trace bruitée) : ramener exactement à D
+      const a = ix.pts[r.seg], b = ix.pts[r.seg + 1];
+      const nl = a[0] + (b[0] - a[0]) * r.t, no = a[1] + (b[1] - a[1]) * r.t, f = D / r.d;
+      p = [nl + (p[0] - nl) * f, no + (p[1] - no) * f];
+    }
+    if (lastKept) {
+      const g = distM(lastKept, p);
+      if (!removed && g < 1.5) continue;
+      if (removed && g > Math.max(15, D * 0.3)) { if (seg.length > 1) out.push(seg); seg = []; }
+    }
+    seg.push([+p[0].toFixed(7), +p[1].toFixed(7)]); lastKept = p; removed = false;
+  }
+  if (seg.length > 1) out.push(seg);
+  return out;
+}
+
+function pointAt(ix, a) {
+  const cum = ix.cum, n = ix.pts.length; a = Math.max(0, Math.min(a, ix.total));
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] <= a) lo = m; else hi = m; }
+  const L = ix.len[lo] || 1, t = Math.min(1, (a - cum[lo]) / L);
+  const p = ix.pts[lo], q = ix.pts[Math.min(lo + 1, n - 1)];
+  const lat = p[0] + (q[0] - p[0]) * t, lon = p[1] + (q[1] - p[1]) * t, c = Math.cos(lat * DEG);
+  const dx = (q[1] - p[1]) * K * c, dy = (q[0] - p[0]) * K, l = Math.hypot(dx, dy) || 1;
+  return { lat, lon, dx: dx / l, dy: dy / l };
+}
+
+function gpxDoc(name, trks) {
+  const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+  let o = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Couloir GPX Rallye" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>' + esc(name) + '</name></metadata>\n';
+  for (const t of trks) {
+    o += '<trk><name>' + esc(t.name) + '</name>\n';
+    for (const sg of t.segs) {
+      o += '<trkseg>\n';
+      for (const p of sg) o += '<trkpt lat="' + p[0].toFixed(6) + '" lon="' + p[1].toFixed(6) + '"></trkpt>\n';
+      o += '</trkseg>\n';
+    }
+    o += '</trk>\n';
+  }
+  return o + '</gpx>\n';
+}
+/*GEO-END*/
+
+// ======================= État =======================
+const $ = s => document.querySelector(s);
+const LS_KEY = 'couloirGPX_v1';
+const S = { dist: 50, warnPct: 80, sound: true, vib: true, basemap: 'sat', orient: 'head', maxZ: 16 };
+let tracks = [], cur = -1, fileName = '';
+let T = null;               // trace active traitée
+const V = { lat: 33.8, lon: 9.4, zoom: 7, rot: 0 };
+let follow = true, firstFix = true;
+let gps = null, prevFix = null, lastHeading = null, lastAlong = null, curRes = null, status = 'idle';
+let watchId = null, simTimer = null, simA = 0;
+
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ S, tracks, cur, fileName })); }
+  catch (e) { try { localStorage.setItem(LS_KEY, JSON.stringify({ S, tracks: [], cur: -1 })); } catch (_) {} }
+}
+function loadState() {
+  try {
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (o) { Object.assign(S, o.S || {}); tracks = o.tracks || []; cur = (o.cur != null ? o.cur : -1); fileName = o.fileName || ''; }
+  } catch (e) {}
+}
+
+let toastT = null;
+function toast(msg, ms) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms || 2600);
+}
+
+// ======================= GPX =======================
+function parseGPX(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('Fichier GPX illisible');
+  const byTag = (root, tag) => root.getElementsByTagNameNS('*', tag);
+  const nameOf = (el, def) => { const c = [...el.children].find(x => x.localName === 'name'); return (c && c.textContent.trim()) || def; };
+  const ptsOf = els => { const a = []; for (const e of els) { const la = parseFloat(e.getAttribute('lat')), lo = parseFloat(e.getAttribute('lon')); if (isFinite(la) && isFinite(lo)) a.push([+la.toFixed(6), +lo.toFixed(6)]); } return a; };
+  const res = [];
+  [...byTag(doc, 'trk')].forEach((t, i) => { const p = ptsOf(byTag(t, 'trkpt')); if (p.length >= 2) res.push({ name: nameOf(t, 'Trace ' + (i + 1)), pts: p }); });
+  [...byTag(doc, 'rte')].forEach((r, i) => { const p = ptsOf(byTag(r, 'rtept')); if (p.length >= 2) res.push({ name: nameOf(r, 'Route ' + (i + 1)), pts: p }); });
+  if (!res.length) { const p = ptsOf(byTag(doc, 'wpt')); if (p.length >= 2) res.push({ name: 'Waypoints', pts: p }); }
+  if (!res.length) throw new Error('Aucune trace trouvée dans ce fichier');
+  return res;
+}
+
+function buildOffsets(base) {
+  const D = S.dist;
+  return Object.assign({}, base, { D, left: offsetLine(base.sm, base.smIdx, D, 1), right: offsetLine(base.sm, base.smIdx, D, -1) });
+}
+function processTrack(i) {
+  const tr = tracks[i]; if (!tr) { T = null; return; }
+  const pts = dedupe(tr.pts);
+  const idx = new TrackIndex(pts);
+  const sm = spacingFilter(pts, 3);
+  const smIdx = sm.length >= 2 ? new TrackIndex(sm) : idx;
+  T = buildOffsets({ name: tr.name, pts, idx, sm: sm.length >= 2 ? sm : pts, smIdx, total: idx.total });
+  lastAlong = null; curRes = null;
+}
+function setDistance(v) {
+  v = Math.round(v); if (!(v >= 5 && v <= 5000)) { toast('Distance invalide (5 à 5000 m)'); return; }
+  S.dist = v; save(); renderChips();
+  if (!T) { updateHUD(); return; }
+  toast('Calcul du couloir…', 10000);
+  setTimeout(() => { T = buildOffsets(T); evaluate(); updateHUD(); requestDraw(); toast('Couloir : ±' + v + ' m'); }, 60);
+}
+
+// ======================= Carte =======================
+const cv = $('#map'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, hudBottom = 0, barH = 0;
+function proj(lat, lon, z) {
+  const n = 256 * Math.pow(2, z), la = Math.max(-85.05, Math.min(85.05, lat)) * DEG;
+  return [(lon + 180) / 360 * n, (1 - Math.log(Math.tan(la) + 1 / Math.cos(la)) / Math.PI) / 2 * n];
+}
+function unproj(x, y, z) {
+  const n = 256 * Math.pow(2, z);
+  return [Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) / DEG, x / n * 360 - 180];
+}
+const gpsActive = () => watchId != null || simTimer != null;
+const headMode = () => S.orient === 'head' && gpsActive();
+function anchor() { return [W / 2, hudBottom + (H - hudBottom - barH) * (headMode() ? 0.74 : 0.5)]; }
+function viewParams() {
+  const tz = Math.floor(V.zoom), s = Math.pow(2, V.zoom - tz), c = proj(V.lat, V.lon, tz), a = anchor();
+  return { tz, s, cx: c[0], cy: c[1], ax: a[0], ay: a[1], cos: Math.cos(V.rot), sin: Math.sin(V.rot) };
+}
+function w2s(P, wx, wy) {
+  const dx = (wx - P.cx) * P.s, dy = (wy - P.cy) * P.s;
+  return [P.ax + dx * P.cos + dy * P.sin, P.ay - dx * P.sin + dy * P.cos];
+}
+const clampZ = z => Math.max(3, Math.min(20, z));
+
+const TILESRC = {
+  osm: { id: 'osm', max: 19, url: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png` },
+  sat: { id: 'sat', max: 18, url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}` }
+};
+const tcache = new Map(); const TMAX = 450;
+function getTile(src, z, x, y) {
+  const key = src.id + '/' + z + '/' + x + '/' + y; let e = tcache.get(key);
+  if (e) {
+    if (e.err && Date.now() > e.retry) tcache.delete(key);
+    else { tcache.delete(key); tcache.set(key, e); return e; }
+  }
+  e = { ok: false, err: false, img: new Image(), url: null }; tcache.set(key, e);
+  e.img.onload = () => { e.ok = true; requestDraw(); };
+  e.img.onerror = () => { e.err = true; e.retry = Date.now() + 20000; if (e.url) { URL.revokeObjectURL(e.url); e.url = null; } };
+  idbGet(key).then(b => { if (b) { e.url = URL.createObjectURL(b); e.img.src = e.url; } else e.img.src = src.url(z, x, y); });
+  if (tcache.size > TMAX) {
+    for (const [k, v] of tcache) { if (k === key) continue; if (v.url) URL.revokeObjectURL(v.url); tcache.delete(k); if (tcache.size <= TMAX * 0.8) break; }
+  }
+  return e;
+}
+function cachedTile(src, z, x, y) { const e = tcache.get(src.id + '/' + z + '/' + x + '/' + y); return e && e.ok ? e : null; }
+
+function drawTiles(P) {
+  const src = TILESRC[S.basemap]; if (!src) return;
+  const tzT = Math.max(0, Math.min(src.max, Math.round(V.zoom)));
+  const f = Math.pow(2, P.tz - tzT), TS = 256 * f, n = Math.pow(2, tzT);
+  let rad = 0; for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) rad = Math.max(rad, Math.hypot(x - P.ax, y - P.ay));
+  rad = rad / P.s + TS;
+  const x0 = Math.floor((P.cx - rad) / TS), x1 = Math.floor((P.cx + rad) / TS);
+  const y0 = Math.max(0, Math.floor((P.cy - rad) / TS)), y1 = Math.min(n - 1, Math.floor((P.cy + rad) / TS));
+  if ((x1 - x0 + 1) * (y1 - y0 + 1) > 300) return;
+  const ov = 1 / P.s;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const xw = ((x % n) + n) % n, dx = x * TS - P.cx, dy = y * TS - P.cy;
+    const e = getTile(src, tzT, xw, y);
+    if (e.ok) { ctx.drawImage(e.img, dx, dy, TS + ov, TS + ov); continue; }
+    for (let k = 1; k <= 6 && tzT - k >= 0; k++) { // tuile parente en attendant
+      const pe = cachedTile(src, tzT - k, xw >> k, y >> k);
+      if (pe) { const m = 1 << k, sub = 256 / m; ctx.drawImage(pe.img, (xw % m) * sub, (y % m) * sub, sub, sub, dx, dy, TS + ov, TS + ov); break; }
+    }
+  }
+}
+
+let PC = null;
+function pathCache(tz) {
+  if (PC && PC.tz === tz && PC.T === T) return PC;
+  const o = proj(T.pts[0][0], T.pts[0][1], tz);
+  const mk = segs => { const p = new Path2D(); for (const sg of segs) sg.forEach((q, i) => { const w = proj(q[0], q[1], tz); i ? p.lineTo(w[0] - o[0], w[1] - o[1]) : p.moveTo(w[0] - o[0], w[1] - o[1]); }); return p; };
+  PC = { tz, T, ox: o[0], oy: o[1], axe: mk([T.pts]), left: mk(T.left), right: mk(T.right) };
+  return PC;
+}
+function mpp(lat, z) { return 156543.03392 * Math.cos(lat * DEG) / Math.pow(2, z); }
+
+function drawTrack(P) {
+  const pc = pathCache(P.tz), px = 1 / P.s;
+  ctx.save(); ctx.translate(pc.ox - P.cx, pc.oy - P.cy);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(34,197,94,0.25)'; ctx.lineWidth = 2 * T.D / mpp(V.lat, P.tz); ctx.stroke(pc.axe);
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 6.5 * px; ctx.stroke(pc.left); ctx.stroke(pc.right); ctx.stroke(pc.axe);
+  ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3.5 * px; ctx.stroke(pc.left); ctx.stroke(pc.right);
+  ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 3 * px; ctx.stroke(pc.axe);
+  ctx.restore();
+}
+
+function drawOverlay(P) {
+  if (T) {
+    const mark = (p, fill, txt) => {
+      const w = proj(p[0], p[1], P.tz), s = w2s(P, w[0], w[1]);
+      ctx.beginPath(); ctx.arc(s[0], s[1], 13, 0, 2 * Math.PI); ctx.fillStyle = fill; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 14px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, s[0], s[1] + 1);
+    };
+    mark(T.pts[T.pts.length - 1], '#111827', 'A'); mark(T.pts[0], '#16a34a', 'D');
+  }
+  if (gps) {
+    const w = proj(gps.lat, gps.lon, P.tz), s = w2s(P, w[0], w[1]);
+    const accPx = gps.acc / mpp(gps.lat, P.tz) * P.s;
+    if (accPx > 14 && accPx < 2000) { ctx.beginPath(); ctx.arc(s[0], s[1], accPx, 0, 2 * Math.PI); ctx.fillStyle = 'rgba(59,130,246,0.15)'; ctx.fill(); }
+    const col = { ok: '#16a34a', warn: '#f59e0b', out: '#dc2626', idle: '#2563eb' }[status];
+    ctx.save(); ctx.translate(s[0], s[1]);
+    if (lastHeading != null) {
+      ctx.rotate(lastHeading * DEG - V.rot);
+      ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(14, 15); ctx.lineTo(0, 7); ctx.lineTo(-14, 15); ctx.closePath();
+    } else { ctx.beginPath(); ctx.arc(0, 0, 11, 0, 2 * Math.PI); }
+    ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.restore();
+  }
+  // échelle
+  const m = mpp(V.lat, V.zoom), target = 110 * m, pow = Math.pow(10, Math.floor(Math.log10(target)));
+  const nice = [1, 2, 5, 10].map(k => k * pow).filter(v => v <= target).pop() || pow;
+  const len = nice / m, x = 12, y = H - barH - 16;
+  ctx.fillStyle = 'rgba(15,23,42,0.75)'; ctx.fillRect(x - 6, y - 22, len + 12, 30);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, y); ctx.lineTo(x + len, y); ctx.lineTo(x + len, y - 6); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px system-ui,sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(nice >= 1000 ? (nice / 1000) + ' km' : nice + ' m', x + 2, y - 9);
+}
+
+let dirty = false;
+function requestDraw() { if (!dirty) { dirty = true; requestAnimationFrame(() => { dirty = false; draw(); }); } }
+function draw() {
+  if (!W) return;
+  const P = viewParams();
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = S.basemap === 'none' ? '#efe7d6' : '#cdc6b6'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.translate(P.ax, P.ay); ctx.rotate(-V.rot); ctx.scale(P.s, P.s);
+  if (S.basemap !== 'none') drawTiles(P);
+  if (T) drawTrack(P);
+  ctx.restore();
+  drawOverlay(P);
+  $('#nArrow').style.transform = 'rotate(' + (-V.rot / DEG) + 'deg)';
+}
+function layout() {
+  W = innerWidth; H = innerHeight; DPR = window.devicePixelRatio || 1;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  const h = $('#hud').offsetHeight; $('#stats').style.top = h + 'px';
+  hudBottom = h + $('#stats').offsetHeight; barH = $('#bar').offsetHeight;
+  $('#rb').style.top = (hudBottom + (H - hudBottom - barH) / 2) + 'px';
+  draw();
+}
+function fitTrack() {
+  if (!T) return;
+  let a = 90, b = -90, c = 180, d = -180;
+  for (const p of T.pts) { if (p[0] < a) a = p[0]; if (p[0] > b) b = p[0]; if (p[1] < c) c = p[1]; if (p[1] > d) d = p[1]; }
+  const p1 = proj(b, c, 0), p2 = proj(a, d, 0);
+  const wpx = Math.max(p2[0] - p1[0], 1e-9), hpx = Math.max(p2[1] - p1[1], 1e-9);
+  const avail = H - hudBottom - barH;
+  V.zoom = clampZ(Math.log2(Math.min((W - 90) / wpx, (avail - 40) / hpx)));
+  const m = unproj((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2, 0); V.lat = m[0]; V.lon = m[1];
+  if (!gpsActive()) V.rot = 0;
+  requestDraw();
+}
+
+// ---- gestes ----
+const ptrs = new Map(); let pinch = null, moved = 0;
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = 0;
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: V.zoom }; }
+});
+cv.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 1) { moved += Math.abs(dx) + Math.abs(dy); if (moved > 10) panBy(dx, dy); }
+  else if (ptrs.size === 2 && pinch) { const [a, b] = [...ptrs.values()]; V.zoom = clampZ(pinch.z + Math.log2(Math.hypot(a.x - b.x, a.y - b.y) / pinch.d)); requestDraw(); }
+});
+const ptrUp = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; };
+cv.addEventListener('pointerup', ptrUp); cv.addEventListener('pointercancel', ptrUp);
+cv.addEventListener('wheel', e => { e.preventDefault(); V.zoom = clampZ(V.zoom - e.deltaY / 300); requestDraw(); }, { passive: false });
+function panBy(dx, dy) {
+  const P = viewParams();
+  const wx = (dx * P.cos - dy * P.sin) / P.s, wy = (dx * P.sin + dy * P.cos) / P.s;
+  const ll = unproj(P.cx - wx, P.cy - wy, P.tz); V.lat = ll[0]; V.lon = ll[1];
+  if (follow && gpsActive()) { follow = false; updateButtons(); }
+  requestDraw();
+}
+
+// ======================= Tuiles hors-ligne (IndexedDB) =======================
+let dbP = null;
+function db() {
+  if (dbP) return dbP;
+  dbP = new Promise((res, rej) => {
+    try { const r = indexedDB.open('couloirTiles', 1); r.onupgradeneeded = () => r.result.createObjectStore('t'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }
+    catch (e) { rej(e); }
+  });
+  dbP.catch(() => {}); return dbP;
+}
+function idbGet(k) {
+  return db().then(d => new Promise(res => { try { const q = d.transaction('t').objectStore('t').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); } catch (e) { res(null); } })).catch(() => null);
+}
+function idbPut(k, v) {
+  return db().then(d => new Promise((res, rej) => { const tx = d.transaction('t', 'readwrite'); tx.objectStore('t').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }));
+}
+function idbHas(k) {
+  return db().then(d => new Promise(res => { try { const q = d.transaction('t').objectStore('t').count(k); q.onsuccess = () => res(q.result > 0); q.onerror = () => res(false); } catch (e) { res(false); } })).catch(() => false);
+}
+function idbCount() {
+  return db().then(d => new Promise(res => { try { const q = d.transaction('t').objectStore('t').count(); q.onsuccess = () => res(q.result); q.onerror = () => res(0); } catch (e) { res(0); } })).catch(() => -1);
+}
+function idbClear() {
+  return db().then(d => new Promise(res => { const tx = d.transaction('t', 'readwrite'); tx.objectStore('t').clear(); tx.oncomplete = () => res(); tx.onerror = () => res(); }));
+}
+async function refreshCacheInfo() {
+  const n = await idbCount();
+  if (!pfRunning) $('#pfStatus').textContent = n < 0 ? 'Stockage hors-ligne indisponible sur ce navigateur.' : (n + ' tuiles de carte en mémoire hors-ligne.');
+}
+let pfRunning = false, pfCancel = false;
+async function prefetch() {
+  if (pfRunning) { pfCancel = true; return; }
+  if (!T) { toast("Charge d'abord une trace"); return; }
+  try { await db(); } catch (e) { toast('Stockage hors-ligne indisponible'); return; }
+  const src = TILESRC[S.basemap === 'none' ? 'sat' : S.basemap];
+  const zmax = Math.min(S.maxZ, src.max), margin = S.dist + 300, set = new Set();
+  for (let z = 10; z <= zmax; z++) {
+    const tileM = 40075016.7 * Math.cos(T.pts[0][0] * DEG) / Math.pow(2, z);
+    const step = Math.max(20, Math.min(tileM / 3, 300));
+    for (let a = 0; a <= T.total + step; a += step) {
+      const p = pointAt(T.idx, a), dLat = margin / K, dLon = margin / (K * Math.cos(p.lat * DEG));
+      const A = proj(p.lat + dLat, p.lon - dLon, z), B = proj(p.lat - dLat, p.lon + dLon, z);
+      for (let tx = Math.floor(A[0] / 256); tx <= Math.floor(B[0] / 256); tx++)
+        for (let ty = Math.floor(A[1] / 256); ty <= Math.floor(B[1] / 256); ty++) set.add(z + '/' + tx + '/' + ty);
+    }
+  }
+  const list = [...set];
+  const mo = Math.round(list.length * (src.id === 'sat' ? 22 : 12) / 1024);
+  if (!confirm(list.length + ' tuiles (' + (src.id === 'sat' ? 'satellite' : 'plan') + ', zoom 10 à ' + zmax + '), environ ' + mo + ' Mo.\nÀ faire en wifi. Continuer ?')) return;
+  pfRunning = true; pfCancel = false; $('#pfBtn').textContent = '■ Arrêter';
+  let done = 0, ok = 0, err = 0, i = 0;
+  const worker = async () => {
+    while (i < list.length && !pfCancel) {
+      const t = list[i++], key = src.id + '/' + t, [z, x, y] = t.split('/').map(Number);
+      try {
+        if (!(await idbHas(key))) {
+          const r = await fetch(src.url(z, x, y), { mode: 'cors' });
+          if (!r.ok) throw new Error(r.status);
+          await idbPut(key, await r.blob());
+        }
+        ok++;
+      } catch (e) { err++; }
+      done++;
+      if (done % 5 === 0 || done === list.length) $('#pfStatus').textContent = 'Téléchargement : ' + done + ' / ' + list.length + (err ? ' (' + err + ' erreurs)' : '');
+    }
+  };
+  await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
+  pfRunning = false; $('#pfBtn').textContent = '⬇ Précharger';
+  $('#pfStatus').textContent = (pfCancel ? 'Arrêté : ' : 'Terminé : ') + ok + ' tuiles OK' + (err ? ', ' + err + ' en échec (relance pour réessayer)' : '') + '.';
+  toast(pfCancel ? 'Préchargement arrêté' : 'Cartes préchargées');
+}
+
+// ======================= GPS & alertes =======================
+let AC = null, wake = null, lastAlarm = 0;
+function initAudio() { try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} }
+function beep(f, d) {
+  if (!AC) return;
+  try {
+    const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+    o.type = 'square'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d + 0.03);
+  } catch (e) {}
+}
+function vib(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+async function requestWake() {
+  try { if ('wakeLock' in navigator) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (e) { wake = null; }
+  diag();
+}
+function releaseWake() { try { if (wake) wake.release(); } catch (e) {} wake = null; }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && gpsActive() && !wake) requestWake(); });
+
+function startGPS() {
+  if (!navigator.geolocation) { toast('GPS non disponible dans ce navigateur'); return; }
+  stopSim(); initAudio(); requestWake();
+  prevFix = null; lastAlong = null; firstFix = true; follow = true;
+  watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  updateButtons(); updateHUD(); requestDraw();
+  toast('Recherche du signal GPS…');
+}
+function stopGPS() {
+  if (watchId != null) navigator.geolocation.clearWatch(watchId);
+  watchId = null; stopSim(); releaseWake();
+  gps = null; curRes = null; status = 'idle'; V.rot = 0;
+  updateButtons(); updateHUD(); requestDraw();
+}
+function onPos(pos) { const c = pos.coords; handleFix(c.latitude, c.longitude, c.accuracy, c.speed, c.heading, pos.timestamp || Date.now()); }
+function onErr(e) {
+  const local = location.protocol !== 'https:' && location.hostname !== 'localhost';
+  const m = { 1: local ? 'GPS bloqué : Chrome refuse la localisation pour un fichier ouvert en local. Utilise la version en ligne (https).' : 'Localisation refusée : cadenas à gauche de l\'adresse > Autorisations > Position > Autoriser. Vérifie aussi Paramètres Android > Applis > Chrome > Autorisations > Position.', 2: 'Position indisponible', 3: 'Pas de signal GPS pour le moment…' }[e.code] || 'Erreur GPS';
+  toast(m, 4000);
+  if (e.code === 1) stopGPS();
+}
+function bearing(a, b) {
+  const p1 = a[0] * DEG, p2 = b[0] * DEG, dl = (b[1] - a[1]) * DEG;
+  const y = Math.sin(dl) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+  return (Math.atan2(y, x) / DEG + 360) % 360;
+}
+function smoothAngle(a, b, k) { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a + d * k; }
+
+function handleFix(lat, lon, acc, speed, heading, t) {
+  let spd = (speed != null && isFinite(speed)) ? speed : null;
+  let hdg = (heading != null && isFinite(heading)) ? heading : null;
+  if (prevFix) {
+    const dt = (t - prevFix.t) / 1000, dm = distM([prevFix.lat, prevFix.lon], [lat, lon]);
+    if (spd == null && dt > 0) spd = dm / dt;
+    if (dm > 4) { if (hdg == null) hdg = bearing([prevFix.lat, prevFix.lon], [lat, lon]); prevFix = { lat, lon, t }; }
+    else if (dt > 10) prevFix = { lat, lon, t };
+  } else prevFix = { lat, lon, t };
+  gps = { lat, lon, acc: acc || 0, speed: spd, t };
+  if (hdg != null && (spd == null || spd > 1.4)) lastHeading = hdg;
+  if (S.orient === 'head' && lastHeading != null) V.rot = smoothAngle(V.rot, lastHeading * DEG, 0.6);
+  else if (S.orient === 'north') V.rot = 0;
+  if (follow) { V.lat = lat; V.lon = lon; }
+  if (firstFix) { firstFix = false; V.zoom = Math.max(V.zoom, 16); toast('Signal GPS OK'); }
+  evaluate(); updateHUD(); requestDraw();
+}
+function evaluate() {
+  if (!T || !gps) { curRes = null; if (status !== 'idle') status = 'idle'; return; }
+  const r = T.idx.nearest(gps.lat, gps.lon, Infinity, lastAlong);
+  if (!r) { curRes = null; status = 'idle'; return; }
+  curRes = r; lastAlong = r.along;
+  const D = T.D, ns = r.d > D ? 'out' : (r.d > D * S.warnPct / 100 ? 'warn' : 'ok');
+  if (ns !== status) {
+    if (ns === 'out') alarm('out');
+    else if (ns === 'warn' && status === 'ok') alarm('warn');
+    else if (ns !== 'out' && status === 'out') { if (S.sound) { beep(660, 0.1); setTimeout(() => beep(990, 0.15), 130); } }
+    status = ns;
+  } else if (status === 'out' && Date.now() - lastAlarm > 2500) alarm('out');
+}
+function alarm(kind) {
+  lastAlarm = Date.now();
+  if (kind === 'out') { if (S.vib) vib([400, 150, 400]); if (S.sound) { beep(1100, 0.18); setTimeout(() => beep(1100, 0.18), 260); setTimeout(() => beep(1100, 0.18), 520); } }
+  else { if (S.vib) vib(250); if (S.sound) beep(700, 0.3); }
+}
+
+// ---- simulation ----
+function startSim() {
+  if (!T) { toast("Charge d'abord une trace"); return; }
+  if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+  stopSim(); initAudio(); requestWake();
+  simA = 0; prevFix = null; lastAlong = null; firstFix = true; follow = true;
+  simTimer = setInterval(() => {
+    simA += 12.5; // 90 km/h, un point toutes les 0,5 s
+    if (simA > T.total) { stopGPS(); toast('Simulation terminée'); return; }
+    const q = pointAt(T.smIdx, simA), off = T.D * 1.35 * Math.sin(simA / 450);
+    handleFix(q.lat + q.dx * off / K, q.lon - q.dy * off / (K * Math.cos(q.lat * DEG)), 5, null, null, Date.now());
+  }, 500);
+  closePanel(); updateButtons(); updateHUD(); toast('Simulation en cours (bouton Stop pour arrêter)');
+}
+function stopSim() { if (simTimer) { clearInterval(simTimer); simTimer = null; } }
+
+// ======================= Interface =======================
+const fmtKm = m => (m / 1000).toFixed(m < 100000 ? 2 : 1);
+function updateHUD() {
+  const hud = $('#hud'), big = $('#big'), lbl = $('#lbl'), sub = $('#sub'), arr = $('#arrow');
+  hud.className = 'st-' + status; arr.textContent = '';
+  if (!T) { big.textContent = '—'; lbl.textContent = 'AUCUNE TRACE'; sub.textContent = 'Charge le GPX de l\'étape (☰ Réglages)'; }
+  else if (!gpsActive()) { big.textContent = '—'; lbl.textContent = 'GPS ARRÊTÉ'; sub.textContent = 'Couloir ±' + T.D + ' m · appuie sur ▶ GPS'; }
+  else if (!curRes) { big.textContent = '…'; lbl.textContent = 'RECHERCHE GPS'; sub.textContent = 'Couloir ±' + T.D + ' m'; }
+  else {
+    const r = curRes, D = T.D, side = r.side >= 0 ? 'à gauche' : 'à droite';
+    if (status === 'out') { big.innerHTML = '+' + Math.round(r.d - D) + '<small> m</small>'; lbl.textContent = 'HORS COULOIR'; }
+    else { big.innerHTML = Math.round(D - r.d) + '<small> m</small>'; lbl.textContent = 'MARGE RESTANTE'; }
+    sub.textContent = 'Écart ' + Math.round(r.d) + ' m ' + side + ' de la trace · limite ' + D + ' m';
+    if (status !== 'ok') arr.textContent = r.side >= 0 ? '➡' : '⬅';
+  }
+  $('#sSpd').textContent = gps && gps.speed != null ? Math.round(gps.speed * 3.6) : '—';
+  $('#sDone').textContent = T && curRes ? fmtKm(curRes.along) : '—';
+  $('#sLeft').textContent = T ? fmtKm(T.total - (curRes ? curRes.along : 0)) : '—';
+  $('#sAcc').textContent = gps ? '±' + Math.round(gps.acc) : '—';
+  $('#empty').style.display = T ? 'none' : 'block';
+}
+function updateButtons() {
+  const g = $('#bGps'); g.classList.toggle('on', gpsActive()); g.textContent = gpsActive() ? (simTimer ? '■ Stop simu' : '■ Stop GPS') : '▶ GPS';
+  $('#bSnd').textContent = S.sound ? '🔊' : '🔇';
+  $('#bOri').classList.toggle('on', S.orient === 'head');
+  $('#bCtr').classList.toggle('hl', gpsActive() && !follow);
+  $('#simBtn').textContent = simTimer ? '■ Arrêter la simulation' : '▶ Simuler un parcours';
+}
+function renderChips() {
+  const c = $('#chips'); c.innerHTML = '';
+  for (const v of [25, 50, 75, 100, 150, 200, 300]) {
+    const b = document.createElement('button'); b.className = 'chip' + (S.dist === v ? ' on' : ''); b.textContent = v + ' m';
+    b.onclick = () => setDistance(v); c.appendChild(b);
+  }
+  if (![25, 50, 75, 100, 150, 200, 300].includes(S.dist)) { const b = document.createElement('button'); b.className = 'chip on'; b.textContent = S.dist + ' m'; c.appendChild(b); }
+}
+function renderTrackInfo() {
+  const sel = $('#trSel');
+  if (!tracks.length || !T) { $('#trInfo').textContent = 'Aucune trace chargée'; sel.hidden = true; return; }
+  $('#trInfo').innerHTML = '<b>' + T.name.replace(/</g, '&lt;') + '</b><br>' + (fileName ? fileName.replace(/</g, '&lt;') + ' · ' : '') + (T.total / 1000).toFixed(1) + ' km · ' + T.pts.length + ' points';
+  sel.hidden = tracks.length < 2; sel.innerHTML = '';
+  tracks.forEach((t, i) => { const o = document.createElement('option'); o.value = i; o.textContent = (i + 1) + '. ' + t.name; if (i === cur) o.selected = true; sel.appendChild(o); });
+}
+function diag() {
+  const el = $('#diag'); if (!el) return;
+  el.textContent = 'Écran maintenu allumé : ' + (wake ? 'oui' : (('wakeLock' in navigator) ? 'non (actif seulement GPS lancé)' : 'non supporté')) + ' · Contexte sécurisé : ' + (window.isSecureContext ? 'oui' : 'non') + ' · ' + location.protocol;
+}
+function openPanel() { renderTrackInfo(); renderChips(); refreshCacheInfo(); diag(); $('#panel').classList.add('open'); }
+function closePanel() { $('#panel').classList.remove('open'); }
+
+function loadFile(f) {
+  const rd = new FileReader();
+  rd.onload = () => { toast('Calcul du couloir…', 10000); setTimeout(() => {
+    try {
+      const res = parseGPX(String(rd.result));
+      tracks = res; cur = 0; fileName = f.name;
+      processTrack(0); save(); renderTrackInfo(); evaluate(); updateHUD();
+      if (!gpsActive()) fitTrack(); else requestDraw();
+      toast('Trace chargée : ' + (T.total / 1000).toFixed(1) + ' km' + (res.length > 1 ? ' (' + res.length + ' traces dans le fichier)' : ''), 3500);
+      closePanel();
+    } catch (e) { toast(e.message || 'Erreur de lecture', 4000); }
+  }, 60); };
+  rd.onerror = () => toast('Impossible de lire le fichier');
+  rd.readAsText(f);
+}
+function baseName() { return (T.name || 'trace').replace(/[^\w\-]+/g, '_').replace(/_+/g, '_').slice(0, 40) + '_' + T.D + 'm'; }
+function download(fname, text) {
+  const b = new Blob([text], { type: 'application/gpx+xml' }), u = URL.createObjectURL(b), a = document.createElement('a');
+  a.href = u; a.download = fname; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 5000);
+  toast('Enregistré : ' + fname, 3500);
+}
+function exportGPX(which) {
+  if (!T) { toast("Charge d'abord une trace"); return; }
+  const L = { name: 'Limite gauche ' + T.D + ' m', segs: T.left }, R = { name: 'Limite droite ' + T.D + ' m', segs: T.right }, A = { name: 'Axe ' + T.name, segs: [T.pts] };
+  const b = baseName();
+  if (which === 'L') download(b + '_gauche.gpx', gpxDoc(L.name, [L]));
+  else if (which === 'R') download(b + '_droite.gpx', gpxDoc(R.name, [R]));
+  else if (which === 'A') download(b + '_axe.gpx', gpxDoc(A.name, [A]));
+  else download(b + '_couloir.gpx', gpxDoc('Couloir ±' + T.D + ' m ' + T.name, [L, A, R]));
+}
+
+// ---- branchements ----
+$('#bGps').onclick = () => { gpsActive() ? stopGPS() : startGPS(); };
+$('#bMenu').onclick = openPanel;
+$('#pClose').onclick = closePanel;
+$('#bSnd').onclick = () => { S.sound = !S.sound; if (S.sound) { initAudio(); beep(880, 0.1); } save(); updateButtons(); $('#cSound').checked = S.sound; };
+$('#bZin').onclick = () => { V.zoom = clampZ(Math.round(V.zoom) + 1); requestDraw(); };
+$('#bZout').onclick = () => { V.zoom = clampZ(Math.round(V.zoom) - 1); requestDraw(); };
+$('#bOri').onclick = () => {
+  S.orient = S.orient === 'head' ? 'north' : 'head'; save();
+  if (S.orient === 'north') V.rot = 0; else if (lastHeading != null && gpsActive()) V.rot = lastHeading * DEG;
+  toast(S.orient === 'head' ? 'Carte orientée dans le sens de la marche' : 'Carte orientée nord en haut');
+  updateButtons(); requestDraw();
+};
+$('#bCtr').onclick = () => {
+  if (gpsActive() && gps) { follow = true; V.lat = gps.lat; V.lon = gps.lon; V.zoom = Math.max(V.zoom, 15); updateButtons(); requestDraw(); }
+  else fitTrack();
+};
+$('#eLoad').onclick = $('#pLoad').onclick = () => $('#file').click();
+$('#file').onchange = e => { const f = e.target.files[0]; if (f) loadFile(f); e.target.value = ''; };
+$('#trSel').onchange = e => { cur = +e.target.value; processTrack(cur); save(); renderTrackInfo(); evaluate(); updateHUD(); if (!gpsActive()) fitTrack(); else requestDraw(); };
+$('#dOk').onclick = () => { const v = parseFloat($('#dCustom').value); if (v) setDistance(v); };
+$('#warnSel').onchange = e => { S.warnPct = +e.target.value; save(); evaluate(); updateHUD(); };
+$('#cSound').onchange = e => { S.sound = e.target.checked; if (S.sound) initAudio(); save(); updateButtons(); };
+$('#cVib').onchange = e => { S.vib = e.target.checked; if (S.vib) vib(150); save(); };
+$('#bmSel').onchange = e => { S.basemap = e.target.value; save(); requestDraw(); };
+$('#mzSel').onchange = e => { S.maxZ = +e.target.value; save(); };
+$('#pfBtn').onclick = prefetch;
+$('#pfClear').onclick = async () => { if (confirm('Supprimer toutes les cartes enregistrées ?')) { await idbClear(); refreshCacheInfo(); toast('Cache vidé'); } };
+$('#exL').onclick = () => exportGPX('L'); $('#exA').onclick = () => exportGPX('A');
+$('#exR').onclick = () => exportGPX('R'); $('#ex3').onclick = () => exportGPX('3');
+$('#simBtn').onclick = () => { simTimer ? stopGPS() : startSim(); updateButtons(); };
+addEventListener('resize', () => { layout(); });
+
+// ---- hors-ligne (version en ligne) ----
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+// ---- démarrage ----
+loadState();
+$('#warnSel').value = String(S.warnPct); $('#cSound').checked = S.sound; $('#cVib').checked = S.vib;
+$('#bmSel').value = S.basemap; $('#mzSel').value = String(S.maxZ);
+if (tracks.length) { if (cur < 0 || cur >= tracks.length) cur = 0; processTrack(cur); }
+layout(); updateButtons(); updateHUD(); renderChips();
+if (T) fitTrack();
+</script>
+</body>
+</html>
